@@ -1,0 +1,48 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-09-23 11:30:22.994800",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "avg_working_hrs",
+  "avg_char_len"
+ ],
+ "fields": [
+  {
+   "fieldname": "avg_char_len",
+   "fieldtype": "Int",
+   "label": "Avg Character Length in Description"
+  },
+  {
+   "fieldname": "avg_working_hrs",
+   "fieldtype": "Int",
+   "label": "Avg Working Hours(Daily)"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2025-09-23 16:07:42.527732",
+ "modified_by": "Administrator",
+ "module": "Timesheet Pointing System",
+ "name": "Points Configuration",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

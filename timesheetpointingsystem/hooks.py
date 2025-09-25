@@ -148,23 +148,13 @@ app_license = "mit"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"timesheetpointingsystem.tasks.all"
-# 	],
-# 	"daily": [
-# 		"timesheetpointingsystem.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"timesheetpointingsystem.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"timesheetpointingsystem.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"timesheetpointingsystem.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+    "cron" : {
+        "0 10 * * *" : ["timesheetpointingsystem.points.set_daliy_points"],
+        "0 10 * * 1" : ["timesheetpointingsystem.points.set_weekly_points"],
+        "0 10 1 * *" : ["timesheetpointingsystem.points.set_monthly_points"]
+    }
+}
 
 # Testing
 # -------
