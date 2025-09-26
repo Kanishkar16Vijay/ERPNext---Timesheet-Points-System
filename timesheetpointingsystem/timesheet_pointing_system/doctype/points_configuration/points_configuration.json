@@ -6,7 +6,9 @@
  "engine": "InnoDB",
  "field_order": [
   "avg_working_hrs",
-  "avg_char_len"
+  "avg_char_len",
+  "token",
+  "chat"
  ],
  "fields": [
   {
@@ -18,13 +20,23 @@
    "fieldname": "avg_working_hrs",
    "fieldtype": "Int",
    "label": "Avg Working Hours(Daily)"
+  },
+  {
+   "fieldname": "token",
+   "fieldtype": "Data",
+   "label": "Telegram Bot Token"
+  },
+  {
+   "fieldname": "chat",
+   "fieldtype": "Data",
+   "label": "Group Chat ID"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-09-23 16:07:42.527732",
+ "modified": "2025-09-26 11:33:24.780631",
  "modified_by": "Administrator",
  "module": "Timesheet Pointing System",
  "name": "Points Configuration",
