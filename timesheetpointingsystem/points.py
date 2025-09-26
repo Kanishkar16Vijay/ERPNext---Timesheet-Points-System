@@ -3,8 +3,8 @@ from frappe.utils import today, getdate, add_days, add_months
 import requests
 
 # Sending Messages on Telegram Group Bot
-def send_telegram_message(msg, setting=frappe.get_doc("Points Configuration")) :
-    
+def send_telegram_message(msg) :
+    setting = frappe.get_doc("Points Configuration")
     token = setting.token
     chat = setting.chat
 
@@ -22,6 +22,7 @@ def send_telegram_message(msg, setting=frappe.get_doc("Points Configuration")) :
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Telegram Message Failed")
 
+# Getting the previous working day
 def working_day() :
 
     cur_date = getdate(today())
@@ -39,6 +40,7 @@ def working_day() :
     
     return last_working_day
 
+# Getting the starting working day of the previous week
 def starting_working_day_for_last_week() :
     cur_date = getdate(today())
 
@@ -56,12 +58,13 @@ def starting_working_day_for_last_week() :
     
     return week_day
 
+# Getting the last working day of thr previous week
 def ending_working_day_for_last_week(start) :
     end = start
     cur = start
     for i in range(4) :
         cur = add_days(cur, 1)
-        if cur.weekday in (5,6) :
+        if cur.weekday() in (5,6) :
             return end
         
         if frappe.get_value("Holiday", {"holiday_date" : cur, "parent" : "Yearly Holidays"}) :
@@ -70,6 +73,7 @@ def ending_working_day_for_last_week(start) :
     
     return end
 
+# Calculate Points for Timesheet
 def cal_points(timesheet, setting) :
     points = 1
     
@@ -86,31 +90,39 @@ def cal_points(timesheet, setting) :
     else : points += .5
     return points
 
-def points_summary(title, start, end, setting=frappe.get_doc("Points Configuration")) :
-    employees = frappe.get_all("Employee",pluck="name")
+# Creating Summary
+def points_summary(title, start, end) :
+    employees = frappe.get_all("Employee", fields=["name","employee_name"])
     summary = [f"{title} Points : {start} - {end}\n"]
+    setting = frappe.get_doc("Points Configuration")
     for emp in employees :
-        timesheets = frappe.get_all("Timesheet", filters={"employee":emp, "start_date":[">=", start], "end_date":["<=", end]}, pluck="name")
+        timesheets = frappe.get_all("Timesheet", filters={"employee":emp.name, "start_date":["between", [start, end]]}, pluck="name")
+
         points = 0
         for ts in timesheets :
             timesheet = frappe.get_doc("Timesheet", ts)
             points += cal_points(timesheet, setting)
-        employee = frappe.get_doc("Employee", emp)
-        summary.append(f"{employee.employee_name} : {points} points")
+
+        summary.append(f"{emp.employee_name} : {points} points")
+
     return "\n".join(summary)
 
 # Setting Daily Points
 def set_daily_points() :
     last_working_day = working_day()
     if last_working_day is None : return
+
     msg = points_summary("EOD", last_working_day, last_working_day)
+
     send_telegram_message(msg)
 
 # Set Weekly Points
 def set_weekly_points() :
     start = starting_working_day_for_last_week()
     end = ending_working_day_for_last_week(start)
+
     msg = points_summary("Weekly", start, end)
+
     send_telegram_message(msg)
 
 # Set Monthly Points
@@ -119,5 +131,7 @@ def set_monthly_points() :
     end = end.replace(day=1)
     start = add_months(end, -1)
     end = add_days(end, -1)
+
     msg = points_summary("Monthly", start, end)
+
     send_telegram_message(msg)
