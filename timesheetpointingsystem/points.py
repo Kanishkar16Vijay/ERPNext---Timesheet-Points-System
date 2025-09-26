@@ -1,6 +1,8 @@
 import frappe
 from frappe.utils import today, getdate, add_days, add_months
 import requests
+import os
+from dotenv import load_dotenv
 
 def working_day() : # Child function of set_daily_points
 
@@ -84,9 +86,9 @@ def cal_daily(timesheet, setting) :
 
 # Sending Messages on Telegram Group Bot
 def send_telegram_message(msg) :
-
-    token = "8228623766:AAGhjCVkqzktLlN2D7jGGog_iOGpc3DsMgw"
-    chat = "-1003052493680"
+    load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat = os.getenv("CHAT_ID")
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {"chat_id": chat, "text": msg, "parse_mode": "Markdown"}
