@@ -5,7 +5,7 @@ import requests
 class Points :
     def __init__(self):
         self.setting = frappe.get_doc("Points Configuration")
-        self.token = self.setting.token
+        self.token = frappe.client.get_password("Points Configuration", "Points Configuration", "token")
         self.chat = self.setting.chat
         self.avg_working_hrs = self.setting.avg_working_hrs
         self.avg_char_len = self.setting.avg_char_len
@@ -85,20 +85,31 @@ class Points :
 
     # Calculate Points for Timesheet
     def cal_points(self,timesheet, setting) :
-        points = 1
-        
-        total_hrs = timesheet.total_hours
-        if total_hrs >= setting.avg_working_hrs : points += 2
-        else : points += 1
+        points_details = setting.criteria_and_pts
 
-        des = []
-        for tl in timesheet.time_logs :
-            if tl.description : des.extend(tl.description.split(" "))
-        
-        if len(des) >= setting.avg_char_len : points += 2
-        elif len(des) >= setting.avg_char_len//2 : points += 1
-        else : points += .5
-        return points
+        points = 0
+        for pd in points_details :
+
+            if pd.criteria == "Timesheet" : points += pd.points
+            
+            elif pd.criteria == "Description" :
+                des = []
+                for tl in timesheet.time_logs :
+                    if tl.description : des.extend(tl.description.split(" "))
+                
+                if len(des) >= setting.avg_char_len : points += pd.points
+                elif len(des) >= setting.avg_char_len//2 : points += pd.points/2
+                else : points += pd.points/4
+            
+            elif pd.criteria == "Working Hours" :
+                total_hrs = timesheet.total_hours
+                if total_hrs >= setting.avg_working_hrs : points += pd.points
+                else : points += pd.points/2
+            
+            elif pd.criteria == "Timesheet Creation" :
+                if getdate(timesheet.modified) == timesheet.start_date : points +=pd.points
+            
+        return round(points,1)
 
     # Creating Summary
     def points_summary(self,title, start, end) :
@@ -120,6 +131,7 @@ class Points :
     @classmethod
     def set_daily_points(cls) :
         points = cls.instance()
+        if not points.setting.daily : return
         last_working_day = points.working_day()
         if last_working_day is None : return
 
@@ -131,6 +143,7 @@ class Points :
     @classmethod
     def set_weekly_points(cls) :
         points = cls.instance()
+        if not points.setting.weekly : return
         start = points.starting_working_day_for_last_week()
         end = points.ending_working_day_for_last_week(start)
 
@@ -142,6 +155,7 @@ class Points :
     @classmethod
     def set_monthly_points(cls) :
         points = cls.instance()
+        if not points.setting.monthly : return
         end = getdate(today())
         end = end.replace(day=1)
         start = add_months(end, -1)

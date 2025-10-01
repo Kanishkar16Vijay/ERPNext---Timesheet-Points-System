@@ -5,10 +5,16 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "disable",
   "avg_working_hrs",
   "avg_char_len",
   "token",
-  "chat"
+  "chat",
+  "column_break_kcav",
+  "daily",
+  "weekly",
+  "monthly",
+  "criteria_and_pts"
  ],
  "fields": [
   {
@@ -23,20 +29,55 @@
   },
   {
    "fieldname": "token",
-   "fieldtype": "Data",
+   "fieldtype": "Password",
    "label": "Telegram Bot Token"
   },
   {
    "fieldname": "chat",
    "fieldtype": "Data",
    "label": "Group Chat ID"
+  },
+  {
+   "fieldname": "column_break_kcav",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "daily",
+   "fieldtype": "Check",
+   "label": "Daily"
+  },
+  {
+   "default": "0",
+   "fieldname": "weekly",
+   "fieldtype": "Check",
+   "label": "Weekly"
+  },
+  {
+   "default": "0",
+   "fieldname": "monthly",
+   "fieldtype": "Check",
+   "label": "Monthly"
+  },
+  {
+   "fieldname": "criteria_and_pts",
+   "fieldtype": "Table",
+   "label": "Criteria and Points",
+   "options": "Criteria and Points",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "disable",
+   "fieldtype": "Check",
+   "label": "Disable"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-09-26 11:33:24.780631",
+ "modified": "2025-10-01 12:16:03.061842",
  "modified_by": "Administrator",
  "module": "Timesheet Pointing System",
  "name": "Points Configuration",
