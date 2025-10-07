@@ -1,166 +1,187 @@
 import frappe
-from frappe.utils import today, getdate, add_days, add_months
 import requests
+from frappe.utils import add_days, add_months, getdate, today
 
-class Points :
-    def __init__(self):
-        self.setting = frappe.get_doc("Points Configuration")
-        self.token = frappe.client.get_password("Points Configuration", "Points Configuration", "token")
-        self.chat = self.setting.chat
-        self.avg_working_hrs = self.setting.avg_working_hrs
-        self.avg_char_len = self.setting.avg_char_len
 
-    
-    @classmethod
-    def instance(cls) :
-        return cls()
-    
-    # Sending Messages on Telegram Group Bot
-    def send_telegram_message(self,msg) :
+class Points:
+	def __init__(self):
+		self.setting = frappe.get_doc("Points Configuration")
+		self.token = frappe.client.get_password("Points Configuration", "Points Configuration", "token")
+		self.chat = self.setting.chat
+		self.avg_working_hrs = self.setting.avg_working_hrs
+		self.avg_char_len = self.setting.avg_char_len
 
-        if  not self.token or not self.chat :
-            frappe.log_error("Missing Telegram token/chat_id", "Telegram Config Error")
-            return
+	@classmethod
+	def instance(cls):
+		return cls()
 
-        url = f"https://api.telegram.org/bot{self.token}/sendMessage"
-        payload = {"chat_id": self.chat, "text": msg, "parse_mode": "Markdown"}
+	# Sending Messages on Telegram Group Bot
+	def send_telegram_message(self, msg):
+		if not self.token or not self.chat:
+			frappe.log_error("Missing Telegram token/chat_id", "Telegram Config Error")
+			return
 
-        try :
-            response = requests.post(url, data=payload)
-            if response.status_code != 200:
-                frappe.log_error(response.text, "Telegram Message Error")
-        except Exception as e:
-            frappe.log_error(frappe.get_traceback(), "Telegram Message Failed")
+		url = f"https://api.telegram.org/bot{self.token}/sendMessage"
+		payload = {"chat_id": self.chat, "text": msg, "parse_mode": "Markdown"}
 
-    # Getting the previous working day
-    def working_day(self) :
+		try:
+			response = requests.post(url, data=payload)
+			if response.status_code != 200:
+				frappe.log_error(response.text, "Telegram Message Error")
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "Telegram Message Failed")
 
-        cur_date = getdate(today())
-        if frappe.get_value("Holiday", {"holiday_date" : cur_date, "parent" : "Yearly Holidays"}) : return None
-        last_working_day = None
+	# Getting the previous working day
+	def working_day(self):
+		cur_date = getdate(today())
+		if frappe.get_value("Holiday", {"holiday_date": cur_date, "parent": "Yearly Holidays"}):
+			return None
+		last_working_day = None
 
-        for i in range(1,8) :
-            check_date = add_days(cur_date, -i)
+		for i in range(1, 8):
+			check_date = add_days(cur_date, -i)
 
-            if check_date.weekday() in (5,6) or frappe.get_value("Holiday", {"holiday_date" : check_date, "parent" : "Yearly Holidays"}) :
-                continue
+			if check_date.weekday() in (5, 6) or frappe.get_value(
+				"Holiday", {"holiday_date": check_date, "parent": "Yearly Holidays"}
+			):
+				continue
 
-            last_working_day = check_date
-            break
-        
-        return last_working_day
+			last_working_day = check_date
+			break
 
-    # Getting the starting working day of the previous week
-    def starting_working_day_for_last_week(self) :
-        cur_date = getdate(today())
+		return last_working_day
 
-        if cur_date.weekday() not in (5,6) :
-            cur_date = add_days(cur_date, -7)
-        
-        week_day = add_days(cur_date, -cur_date.weekday())
-        for i in range(7) :
-            check_date = add_days(week_day, i)
+	# Getting the starting working day of the previous week
+	def starting_working_day_for_last_week(self):
+		cur_date = getdate(today())
 
-            if check_date.weekday() in (5,6) or frappe.get_value("Holiday", {"holiday_date" : check_date, "parent" : "Yearly Holidays"}) :
-                continue
-            else :
-                break
-        
-        return week_day
+		if cur_date.weekday() not in (5, 6):
+			cur_date = add_days(cur_date, -7)
 
-    # Getting the last working day of thr previous week
-    def ending_working_day_for_last_week(self,start) :
-        end = start
-        cur = start
-        for i in range(4) :
-            cur = add_days(cur, 1)
-            if cur.weekday() in (5,6) :
-                return end
-            
-            if frappe.get_value("Holiday", {"holiday_date" : cur, "parent" : "Yearly Holidays"}) :
-                continue
-            end = cur
-        
-        return end
+		week_day = add_days(cur_date, -cur_date.weekday())
+		for i in range(7):
+			check_date = add_days(week_day, i)
 
-    # Calculate Points for Timesheet
-    def cal_points(self,timesheet, setting) :
-        points_details = setting.criteria_and_pts
+			if check_date.weekday() in (5, 6) or frappe.get_value(
+				"Holiday", {"holiday_date": check_date, "parent": "Yearly Holidays"}
+			):
+				continue
+			else:
+				break
 
-        points = 0
-        for pd in points_details :
+		return week_day
 
-            if pd.criteria == "Timesheet" : points += pd.points
-            
-            elif pd.criteria == "Description" :
-                des = []
-                for tl in timesheet.time_logs :
-                    if tl.description : des.extend(tl.description.split(" "))
-                
-                if len(des) >= setting.avg_char_len : points += pd.points
-                elif len(des) >= setting.avg_char_len//2 : points += pd.points/2
-                else : points += pd.points/4
-            
-            elif pd.criteria == "Working Hours" :
-                total_hrs = timesheet.total_hours
-                if total_hrs >= setting.avg_working_hrs : points += pd.points
-                else : points += pd.points/2
-            
-            elif pd.criteria == "Timesheet Creation" :
-                if getdate(timesheet.modified) == timesheet.start_date : points +=pd.points
-            
-        return round(points,1)
+	# Getting the last working day of thr previous week
+	def ending_working_day_for_last_week(self, start):
+		end = start
+		cur = start
+		for _i in range(4):
+			cur = add_days(cur, 1)
+			if cur.weekday() in (5, 6):
+				return end
 
-    # Creating Summary
-    def points_summary(self,title, start, end) :
-        employees = frappe.get_all("Employee", fields=["name","employee_name"])
-        summary = [f"{title} Points : {start} - {end}\n"]
-        for emp in employees :
-            timesheets = frappe.get_all("Timesheet", filters={"employee":emp.name, "start_date":["between", [start, end]]}, pluck="name")
+			if frappe.get_value("Holiday", {"holiday_date": cur, "parent": "Yearly Holidays"}):
+				continue
+			end = cur
 
-            points = 0
-            for ts in timesheets :
-                timesheet = frappe.get_doc("Timesheet", ts)
-                points += self.cal_points(timesheet, self.setting)
+		return end
 
-            summary.append(f"{emp.employee_name} : {points} points")
+	# Calculate Points for Timesheet
+	def cal_points(self, timesheet, setting):
+		points_details = setting.criteria_and_pts
 
-        return "\n".join(summary)
+		points = 0
+		for pd in points_details:
+			if pd.criteria == "Timesheet":
+				points += pd.points  # For submitting timesheet
 
-    # Set Daily Points
-    @classmethod
-    def set_daily_points(cls) :
-        points = cls.instance()
-        if not points.setting.daily or points.setting.disable : return
-        last_working_day = points.working_day()
-        if last_working_day is None : return
+			elif pd.criteria == "Description":  # Counting the length of the description
+				des = []
+				for tl in timesheet.time_logs:
+					if tl.description:
+						des.extend(tl.description.split(" "))
 
-        msg = points.points_summary("EOD", last_working_day, last_working_day)
+				if len(des) >= setting.avg_char_len:
+					points += pd.points
+				elif len(des) >= setting.avg_char_len // 2:
+					points += pd.points / 2
+				else:
+					points += pd.points / 4
 
-        points.send_telegram_message(msg)
+			elif pd.criteria == "Working Hours":  # Calculating the working hours
+				total_hrs = timesheet.total_hours
+				if total_hrs >= setting.avg_working_hrs:
+					points += pd.points
+				else:
+					points += pd.points / 2
 
-    # Set Weekly Points
-    @classmethod
-    def set_weekly_points(cls) :
-        points = cls.instance()
-        if not points.setting.weekly or points.setting.disable : return
-        start = points.starting_working_day_for_last_week()
-        end = points.ending_working_day_for_last_week(start)
+			elif pd.criteria == "Timesheet Creation":  # Getting the timesheet creation time
+				if getdate(timesheet.modified) == timesheet.start_date:
+					points += pd.points
 
-        msg = points.points_summary("Weekly", start, end)
+		return round(points, 1)
 
-        points.send_telegram_message(msg)
+	# Creating Summary
+	def points_summary(self, title, start, end):
+		employees = frappe.get_all("Employee", fields=["name", "employee_name"])
+		summary = [f"{title} Points : {start} - {end}\n"]
+		for emp in employees:
+			timesheets = frappe.get_all(
+				"Timesheet",
+				filters={"employee": emp.name, "start_date": ["between", [start, end]]},
+				pluck="name",
+			)
 
-    # Set Monthly Points
-    @classmethod
-    def set_monthly_points(cls) :
-        points = cls.instance()
-        if not points.setting.monthly or points.setting.disable : return
-        end = getdate(today())
-        end = end.replace(day=1)
-        start = add_months(end, -1)
-        end = add_days(end, -1)
+			points = 0
+			for ts in timesheets:
+				timesheet = frappe.get_doc("Timesheet", ts)
+				points += self.cal_points(timesheet, self.setting)
 
-        msg = points.points_summary("Monthly", start, end)
+			summary.append(f"{emp.employee_name} : {points} points")
 
-        points.send_telegram_message(msg)
+		return "\n".join(summary)
+
+	# Set Daily Points
+	@classmethod
+	def set_daily_points(cls):
+		points = cls.instance()
+		if not points.setting.daily or points.setting.disable:
+			return
+
+		last_working_day = points.working_day()
+		if last_working_day is None:
+			return
+
+		msg = points.points_summary("EOD", last_working_day, last_working_day)
+
+		points.send_telegram_message(msg)
+
+	# Set Weekly Points
+	@classmethod
+	def set_weekly_points(cls):
+		points = cls.instance()
+		if not points.setting.weekly or points.setting.disable:
+			return
+
+		start = points.starting_working_day_for_last_week()
+		end = points.ending_working_day_for_last_week(start)
+
+		msg = points.points_summary("Weekly", start, end)
+
+		points.send_telegram_message(msg)
+
+	# Set Monthly Points
+	@classmethod
+	def set_monthly_points(cls):
+		points = cls.instance()
+		if not points.setting.monthly or points.setting.disable:
+			return
+
+		end = getdate(today())
+		end = end.replace(day=1)
+		start = add_months(end, -1)
+		end = add_days(end, -1)
+
+		msg = points.points_summary("Monthly", start, end)
+
+		points.send_telegram_message(msg)

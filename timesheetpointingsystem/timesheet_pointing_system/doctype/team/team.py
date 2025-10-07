@@ -6,10 +6,10 @@ from frappe.model.document import Document
 
 
 class Team(Document):
-	def before_save(self) :
-
+	def before_save(self):
 		count = 1
-		for tm in self.team_member :
-			if tm.member : count += 1
-		
+		for tm in self.team_member:
+			if tm.member:
+				count += 1
+
 		self.total_members = count

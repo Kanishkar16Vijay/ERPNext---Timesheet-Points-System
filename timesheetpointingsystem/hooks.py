@@ -149,11 +149,11 @@ app_license = "mit"
 # ---------------
 
 scheduler_events = {
-    "cron" : {
-        "0 10 * * *" : ["timesheetpointingsystem.points.Points.set_daily_points"],
-        "0 10 * * 1" : ["timesheetpointingsystem.points.Points.set_weekly_points"],
-        "0 10 1 * *" : ["timesheetpointingsystem.points.Points.set_monthly_points"]
-    }
+	"cron": {
+		"0 10 * * *": ["timesheetpointingsystem.points.Points.set_daily_points"],
+		"0 10 * * 1": ["timesheetpointingsystem.points.Points.set_weekly_points"],
+		"0 10 1 * *": ["timesheetpointingsystem.points.Points.set_monthly_points"],
+	}
 }
 
 # Testing
@@ -231,4 +231,3 @@ scheduler_events = {
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
-
