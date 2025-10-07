@@ -131,7 +131,7 @@ class Points :
     @classmethod
     def set_daily_points(cls) :
         points = cls.instance()
-        if not points.setting.daily : return
+        if not points.setting.daily or points.setting.disable : return
         last_working_day = points.working_day()
         if last_working_day is None : return
 
@@ -143,7 +143,7 @@ class Points :
     @classmethod
     def set_weekly_points(cls) :
         points = cls.instance()
-        if not points.setting.weekly : return
+        if not points.setting.weekly or points.setting.disable : return
         start = points.starting_working_day_for_last_week()
         end = points.ending_working_day_for_last_week(start)
 
@@ -155,7 +155,7 @@ class Points :
     @classmethod
     def set_monthly_points(cls) :
         points = cls.instance()
-        if not points.setting.monthly : return
+        if not points.setting.monthly or points.setting.disable : return
         end = getdate(today())
         end = end.replace(day=1)
         start = add_months(end, -1)
