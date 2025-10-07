@@ -150,9 +150,9 @@ app_license = "mit"
 
 scheduler_events = {
 	"cron": {
-		"0 10 * * *": ["timesheetpointingsystem.points.Points.set_daily_points"],
-		"0 10 * * 1": ["timesheetpointingsystem.points.Points.set_weekly_points"],
-		"0 10 1 * *": ["timesheetpointingsystem.points.Points.set_monthly_points"],
+		"0 10 * * *": ["timesheetpointingsystem.points.set_daily_points"],
+		"0 10 * * 1": ["timesheetpointingsystem.points.set_weekly_points"],
+		"0 10 1 * *": ["timesheetpointingsystem.points.set_monthly_points"],
 	}
 }
 

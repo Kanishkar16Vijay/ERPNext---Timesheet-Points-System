@@ -185,3 +185,15 @@ class Points:
 		msg = points.points_summary("Monthly", start, end)
 
 		points.send_telegram_message(msg)
+
+
+def set_daily_points():
+	Points.set_daily_points()
+
+
+def set_weekly_points():
+	Points.set_weekly_points()
+
+
+def set_monthly_points():
+	Points.set_monthly_points()
