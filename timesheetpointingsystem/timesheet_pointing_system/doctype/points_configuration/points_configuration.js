@@ -2,15 +2,14 @@ frappe.ui.form.on("Criteria and Points", {
 	criteria: function (frm, cdt, cdn) {
 		var row = locals[cdt][cdn];
 		if (!row || !row.criteria) return;
-		let duplicate = frm.doc.criteria_and_pts.some(
-			(element) => element.criteria === row.criteria
-		);
+		let duplicate = false;
+		for (let i = 0; i < frm.doc.criteria_and_pts.length - 1; i++) {
+			if (frm.doc.criteria_and_pts[i].criteria === row.criteria) duplicate = true;
+		}
 
 		if (duplicate) {
-			setTimeout(() => {
-				frm.get_field("criteria_and_pts").grid.grid_rows_by_docname[cdn].remove();
-				frappe.msgprint(__("Criteria already exist"));
-			}, 1);
+			frm.get_field("criteria_and_pts").grid.grid_rows_by_docname[cdn].remove();
+			frappe.msgprint("Criteria already exist");
 		}
 	},
 });
