@@ -128,7 +128,7 @@ class Points:
 		for emp in employees:
 			timesheets = frappe.get_all(
 				"Timesheet",
-				filters={"employee": emp.name, "start_date": ["between", [start, end]]},
+				filters={"employee": emp.name, "docstatus": 1, "start_date": ["between", [start, end]]},
 				pluck="name",
 			)
 

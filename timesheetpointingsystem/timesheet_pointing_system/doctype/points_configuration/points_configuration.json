@@ -24,7 +24,7 @@
   },
   {
    "fieldname": "avg_working_hrs",
-   "fieldtype": "Int",
+   "fieldtype": "Float",
    "label": "Avg Working Hours(Daily)"
   },
   {
@@ -77,7 +77,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-10-07 11:29:16.452724",
+ "modified": "2025-10-08 12:18:39.724389",
  "modified_by": "Administrator",
  "module": "Timesheet Pointing System",
  "name": "Points Configuration",
