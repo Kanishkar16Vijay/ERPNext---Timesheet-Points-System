@@ -6,14 +6,10 @@ from frappe.utils import add_days, add_months, getdate, today
 class Points:
 	def __init__(self):
 		self.setting = frappe.get_doc("Points Configuration")
-		self.token = frappe.client.get_password("Points Configuration", "Points Configuration", "token")
+		self.token = self.setting.get_password("token")
 		self.chat = self.setting.chat
 		self.avg_working_hrs = self.setting.avg_working_hrs
 		self.avg_char_len = self.setting.avg_char_len
-
-	@classmethod
-	def instance(cls):
-		return cls()
 
 	# Sending Messages on Telegram Group Bot
 	def send_telegram_message(self, msg):
@@ -142,39 +138,33 @@ class Points:
 		return "\n".join(summary)
 
 	# Set Daily Points
-	@classmethod
-	def set_daily_points(cls):
-		points = cls.instance()
-		if not points.setting.daily or points.setting.disable:
+	def set_daily_points(self):
+		if not self.setting.daily or self.setting.disable:
 			return
 
-		last_working_day = points.working_day()
+		last_working_day = self.working_day()
 		if last_working_day is None:
 			return
 
-		msg = points.points_summary("EOD", last_working_day, last_working_day)
+		msg = self.points_summary("EOD", last_working_day, last_working_day)
 
-		points.send_telegram_message(msg)
+		self.send_telegram_message(msg)
 
 	# Set Weekly Points
-	@classmethod
-	def set_weekly_points(cls):
-		points = cls.instance()
-		if not points.setting.weekly or points.setting.disable:
+	def set_weekly_points(self):
+		if not self.setting.weekly or self.setting.disable:
 			return
 
-		start = points.starting_working_day_for_last_week()
-		end = points.ending_working_day_for_last_week(start)
+		start = self.starting_working_day_for_last_week()
+		end = self.ending_working_day_for_last_week(start)
 
-		msg = points.points_summary("Weekly", start, end)
+		msg = self.points_summary("Weekly", start, end)
 
-		points.send_telegram_message(msg)
+		self.send_telegram_message(msg)
 
 	# Set Monthly Points
-	@classmethod
-	def set_monthly_points(cls):
-		points = cls.instance()
-		if not points.setting.monthly or points.setting.disable:
+	def set_monthly_points(self):
+		if not self.setting.monthly or self.setting.disable:
 			return
 
 		end = getdate(today())
@@ -182,18 +172,15 @@ class Points:
 		start = add_months(end, -1)
 		end = add_days(end, -1)
 
-		msg = points.points_summary("Monthly", start, end)
+		msg = self.points_summary("Monthly", start, end)
 
-		points.send_telegram_message(msg)
-
-
-def set_daily_points():
-	Points.set_daily_points()
+		self.send_telegram_message(msg)
 
 
-def set_weekly_points():
-	Points.set_weekly_points()
-
-
-def set_monthly_points():
-	Points.set_monthly_points()
+def set_points():
+	point = Points()
+	point.set_daily_points()
+	if getdate(today()).weekday() == 0:
+		point.set_weekly_points()
+	if getdate(today()).day == 1:
+		point.set_monthly_points()
