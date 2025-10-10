@@ -56,10 +56,8 @@ class Points:
 		for i in range(7):
 			check_date = add_days(week_day, i)
 
-			if is_holiday(self.holiday_list, check_date):
-				continue
-			else:
-				break
+			if not is_holiday(self.holiday_list, check_date):
+				return week_day
 
 		return week_day
 
@@ -81,18 +79,18 @@ class Points:
 	# Creating Summary
 	def points_summary(self, title, start, end):
 		data = frappe.db.sql(
-			f"""
+			"""
 			SELECT
 				ts.employee,
 				SUM(
 					1 +
 					CASE
-						WHEN tl.point >= {self.avg_char_len} THEN 2
-						WHEN tl.point >= {self.avg_char_len}/2 THEN 1
+						WHEN tl.word_count >= %s THEN 2
+						WHEN tl.word_count >= %s THEN 1
 						ELSE 0.5
 					END
 					+ CASE
-						WHEN ts.total_hours >= {self.avg_working_hrs} THEN 2
+						WHEN ts.total_hours >= %s THEN 2
 						ELSE 1
 					END
 					) as total_points
@@ -100,12 +98,13 @@ class Points:
 			LEFT JOIN(
 				SELECT
 					parent,
-					LENGTH(GROUP_CONCAT(description SEPARATOR ' ')) - LENGTH(REPLACE(GROUP_CONCAT(description SEPARATOR ' '), ' ', '')) + 1 AS point
+					LENGTH(GROUP_CONCAT(description SEPARATOR ' ')) - LENGTH(REPLACE(GROUP_CONCAT(description SEPARATOR ' '), ' ', '')) + 1 AS word_count
 				FROM `tabTimesheet Detail`
 				GROUP BY parent ) tl ON tl.parent=ts.name
-			WHERE ts.docstatus=1 AND ts.start_date BETWEEN '{start}' AND '{end}'
+			WHERE ts.docstatus=1 AND ts.start_date BETWEEN %s AND %s
 			GROUP BY ts.employee
 		""",
+			(self.avg_char_len, self.avg_char_len // 2, self.avg_working_hrs, start, end),
 			as_dict=True,
 		)
 
@@ -161,7 +160,9 @@ class Points:
 def set_points():
 	point = Points()
 	point.set_daily_points()
-	if getdate(today()).weekday() == 0:
+
+	date = getdate(today())
+	if date.weekday() == 0:
 		point.set_weekly_points()
-	if getdate(today()).day == 1:
+	if date.day == 1:
 		point.set_monthly_points()
