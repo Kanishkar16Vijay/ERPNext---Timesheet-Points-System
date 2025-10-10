@@ -1,5 +1,6 @@
 import frappe
 import requests
+from erpnext.setup.doctype.holiday_list.holiday_list import is_holiday
 from frappe.utils import add_days, add_months, getdate, today
 
 
@@ -10,6 +11,13 @@ class Points:
 		self.chat = self.setting.chat
 		self.avg_working_hrs = self.setting.avg_working_hrs
 		self.avg_char_len = self.setting.avg_char_len
+		self.holiday_list = self.setting.holiday_list or frappe.get_value(
+			"Company", "Aerele Technologies", "default_holiday_list"
+		)
+		if not self.holiday_list:
+			self.send_telegram_message(
+				"Plese set default holiday list in Company or holiday list in Point Configuration"
+			)
 
 	# Sending Messages on Telegram Group Bot
 	def send_telegram_message(self, msg):
@@ -28,24 +36,14 @@ class Points:
 			frappe.log_error(frappe.get_traceback(), "Telegram Message Failed")
 
 	# Getting the previous working day
-	def working_day(self):
-		cur_date = getdate(today())
-		if frappe.get_value("Holiday", {"holiday_date": cur_date, "parent": "Yearly Holidays"}):
-			return None
-		last_working_day = None
+	def working_day(self, last_date=None):
+		if not last_date:
+			last_date = add_days(getdate(today()), -1)
 
-		for i in range(1, 8):
-			check_date = add_days(cur_date, -i)
+		if is_holiday(self.holiday_list, last_date):
+			return self.working_day(add_days(last_date, -1))
 
-			if check_date.weekday() in (5, 6) or frappe.get_value(
-				"Holiday", {"holiday_date": check_date, "parent": "Yearly Holidays"}
-			):
-				continue
-
-			last_working_day = check_date
-			break
-
-		return last_working_day
+		return last_date
 
 	# Getting the starting working day of the previous week
 	def starting_working_day_for_last_week(self):
@@ -58,9 +56,7 @@ class Points:
 		for i in range(7):
 			check_date = add_days(week_day, i)
 
-			if check_date.weekday() in (5, 6) or frappe.get_value(
-				"Holiday", {"holiday_date": check_date, "parent": "Yearly Holidays"}
-			):
+			if is_holiday(self.holiday_list, check_date):
 				continue
 			else:
 				break
@@ -71,69 +67,55 @@ class Points:
 	def ending_working_day_for_last_week(self, start):
 		end = start
 		cur = start
-		for _i in range(4):
+		for _i in range(5):
 			cur = add_days(cur, 1)
 			if cur.weekday() in (5, 6):
-				return end
+				break
 
-			if frappe.get_value("Holiday", {"holiday_date": cur, "parent": "Yearly Holidays"}):
+			if is_holiday(self.holiday_list, cur):
 				continue
 			end = cur
 
 		return end
 
-	# Calculate Points for Timesheet
-	def cal_points(self, timesheet, setting):
-		points_details = setting.criteria_and_pts
-
-		points = 0
-		for pd in points_details:
-			if pd.criteria == "Timesheet":
-				points += pd.points  # For submitting timesheet
-
-			elif pd.criteria == "Description":  # Counting the length of the description
-				des = []
-				for tl in timesheet.time_logs:
-					if tl.description:
-						des.extend(tl.description.split(" "))
-
-				if len(des) >= setting.avg_char_len:
-					points += pd.points
-				elif len(des) >= setting.avg_char_len // 2:
-					points += pd.points / 2
-				else:
-					points += pd.points / 4
-
-			elif pd.criteria == "Working Hours":  # Calculating the working hours
-				total_hrs = timesheet.total_hours
-				if total_hrs >= setting.avg_working_hrs:
-					points += pd.points
-				else:
-					points += pd.points / 2
-
-			elif pd.criteria == "Timesheet Creation":  # Getting the timesheet creation time
-				if getdate(timesheet.modified) == timesheet.start_date:
-					points += pd.points
-
-		return round(points, 1)
-
 	# Creating Summary
 	def points_summary(self, title, start, end):
-		employees = frappe.get_all("Employee", fields=["name", "employee_name"])
+		data = frappe.db.sql(
+			f"""
+			SELECT
+				ts.employee,
+				SUM(
+					1 +
+					CASE
+						WHEN (
+							SELECT
+								LENGTH(GROUP_CONCAT(td.description SEPARATOR ' ')) - LENGTH(REPLACE(GROUP_CONCAT(td.description SEPARATOR ' '),' ','')) + 1
+							FROM `tabTimesheet Detail` td WHERE td.parent=ts.name
+							) >= {self.avg_char_len} THEN 2
+						WHEN (
+							SELECT
+								LENGTH(GROUP_CONCAT(td.description SEPARATOR ' ')) - LENGTH(REPLACE(GROUP_CONCAT(td.description SEPARATOR ' '),' ','')) + 1
+							FROM `tabTimesheet Detail` td WHERE td.parent=ts.name
+							) >= {self.avg_char_len}/2 THEN 1
+						ELSE 0.5
+					END
+					+ CASE
+						WHEN ts.total_hours >= {self.avg_working_hrs} THEN 2
+						ELSE 1
+					END
+					) as total_points
+			FROM `tabTimesheet` ts
+			WHERE ts.docstatus=1 AND ts.start_date BETWEEN '{start}' AND '{end}'
+			GROUP BY ts.employee
+		""",
+			as_dict=True,
+		)
+
 		summary = [f"{title} Points : {start} - {end}\n"]
-		for emp in employees:
-			timesheets = frappe.get_all(
-				"Timesheet",
-				filters={"employee": emp.name, "docstatus": 1, "start_date": ["between", [start, end]]},
-				pluck="name",
+		for points in data:
+			summary.append(
+				f"{frappe.get_value('Employee', points.employee, 'employee_name')} : {points.total_points} points"
 			)
-
-			points = 0
-			for ts in timesheets:
-				timesheet = frappe.get_doc("Timesheet", ts)
-				points += self.cal_points(timesheet, self.setting)
-
-			summary.append(f"{emp.employee_name} : {points} points")
 
 		return "\n".join(summary)
 
@@ -143,8 +125,9 @@ class Points:
 			return
 
 		last_working_day = self.working_day()
-		if last_working_day is None:
-			return
+
+		if is_holiday(self.holiday_list):
+			return None
 
 		msg = self.points_summary("EOD", last_working_day, last_working_day)
 

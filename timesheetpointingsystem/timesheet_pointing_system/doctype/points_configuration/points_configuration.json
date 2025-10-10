@@ -14,7 +14,7 @@
   "daily",
   "weekly",
   "monthly",
-  "criteria_and_pts"
+  "holiday_list"
  ],
  "fields": [
   {
@@ -60,24 +60,23 @@
    "label": "Monthly"
   },
   {
-   "fieldname": "criteria_and_pts",
-   "fieldtype": "Table",
-   "label": "Criteria and Points",
-   "options": "Criteria and Points",
-   "reqd": 1
-  },
-  {
    "default": "0",
    "fieldname": "disable",
    "fieldtype": "Check",
    "label": "Disable"
+  },
+  {
+   "fieldname": "holiday_list",
+   "fieldtype": "Link",
+   "label": "Holiday List",
+   "options": "Holiday List"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-10-08 12:18:39.724389",
+ "modified": "2025-10-09 17:12:51.772703",
  "modified_by": "Administrator",
  "module": "Timesheet Pointing System",
  "name": "Points Configuration",
