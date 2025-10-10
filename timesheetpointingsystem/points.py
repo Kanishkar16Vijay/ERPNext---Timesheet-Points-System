@@ -87,16 +87,8 @@ class Points:
 				SUM(
 					1 +
 					CASE
-						WHEN (
-							SELECT
-								LENGTH(GROUP_CONCAT(td.description SEPARATOR ' ')) - LENGTH(REPLACE(GROUP_CONCAT(td.description SEPARATOR ' '),' ','')) + 1
-							FROM `tabTimesheet Detail` td WHERE td.parent=ts.name
-							) >= {self.avg_char_len} THEN 2
-						WHEN (
-							SELECT
-								LENGTH(GROUP_CONCAT(td.description SEPARATOR ' ')) - LENGTH(REPLACE(GROUP_CONCAT(td.description SEPARATOR ' '),' ','')) + 1
-							FROM `tabTimesheet Detail` td WHERE td.parent=ts.name
-							) >= {self.avg_char_len}/2 THEN 1
+						WHEN tl.point >= {self.avg_char_len} THEN 2
+						WHEN tl.point >= {self.avg_char_len}/2 THEN 1
 						ELSE 0.5
 					END
 					+ CASE
@@ -105,6 +97,12 @@ class Points:
 					END
 					) as total_points
 			FROM `tabTimesheet` ts
+			LEFT JOIN(
+				SELECT
+					parent,
+					LENGTH(GROUP_CONCAT(description SEPARATOR ' ')) - LENGTH(REPLACE(GROUP_CONCAT(description SEPARATOR ' '), ' ', '')) + 1 AS point
+				FROM `tabTimesheet Detail`
+				GROUP BY parent ) tl ON tl.parent=ts.name
 			WHERE ts.docstatus=1 AND ts.start_date BETWEEN '{start}' AND '{end}'
 			GROUP BY ts.employee
 		""",
