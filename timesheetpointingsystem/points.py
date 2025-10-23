@@ -173,7 +173,7 @@ class Points:
 				SUM(tl.word_count) as des_len,
 				SUM(ts.total_hours) as total_hrs_worked,
 				CASE
-					WHEN ts.name IS NULL THEN SUM(
+					WHEN ts.name IS NOT NULL THEN SUM(
 						1 +
 						CASE
 							WHEN tl.word_count >= %s THEN 2
