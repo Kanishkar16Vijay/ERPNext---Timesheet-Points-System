@@ -279,4 +279,4 @@ def set_points():
 
 
 def redis_queue():
-	frappe.enqueue(method="timesheetpointingsystem.points.set_points", queue="default")
+	frappe.enqueue(method="timesheetpointingsystem.points.set_points", queue="long")
