@@ -124,7 +124,7 @@ class Points:
 					dates += str(date)
 					dates += ", "
 			if dates:
-				miss_date[emp] = dates
+				miss_date[emp] = dates[:-2]
 			else:
 				miss_date[emp] = "-"
 
@@ -153,9 +153,9 @@ class Points:
 					<td style="border:1px solid #ccc; text-align:center">{self.emp_map.get(row.employee)}</td>
 					<td style="border:1px solid #ccc; text-align:center">{len(working_days) - (row.leave_days or 0)}</td>
 					<td style="border:1px solid #ccc; text-align:center">{missed_date[row.employee]}</td>
-					<td style="border:1px solid #ccc; text-align:center">{row.worked_days}</td>
-					<td style="border:1px solid #ccc; text-align:center">{row.des_len}</td>
-					<td style="border:1px solid #ccc; text-align:center">{row.total_hrs_worked}</td>
+					<td style="border:1px solid #ccc; text-align:center">{row.worked_days or 0}</td>
+					<td style="border:1px solid #ccc; text-align:center">{row.des_len or 0}</td>
+					<td style="border:1px solid #ccc; text-align:center">{row.total_hrs_worked or 0}</td>
 				</tr>
 				"""
 		html += "<table></body></html>"
@@ -172,18 +172,21 @@ class Points:
 				COUNT(ts.name) as worked_days,
 				SUM(tl.word_count) as des_len,
 				SUM(ts.total_hours) as total_hrs_worked,
-				SUM(
-					1 +
-					CASE
-						WHEN tl.word_count >= %s THEN 2
-						WHEN tl.word_count >= %s THEN 1
-						ELSE 0.5
-					END
-					+ CASE
-						WHEN ts.total_hours >= %s THEN 2
-						ELSE 1
-					END
-					) as total_points
+				CASE
+					WHEN ts.name IS NULL THEN SUM(
+						1 +
+						CASE
+							WHEN tl.word_count >= %s THEN 2
+							WHEN tl.word_count >= %s THEN 1
+							ELSE 0.5
+						END
+						+ CASE
+							WHEN ts.total_hours >= %s THEN 2
+							ELSE 1
+						END
+						)
+					ELSE 0
+				END as total_points
 			FROM `tabEmployee` emp
 
 			LEFT JOIN (
@@ -194,7 +197,10 @@ class Points:
 				WHERE status="Approved" AND from_date<=%s AND to_date>=%s
 				GROUP BY employee
 			) la ON la.employee = emp.employee
-			JOIN `tabTimesheet` ts ON ts.employee = emp.employee
+
+			LEFT JOIN `tabTimesheet` ts ON ts.employee = emp.employee
+			AND ts.docstatus = 1
+			AND ts.start_date BETWEEN %s AND %s
 
 			LEFT JOIN (
 				SELECT
@@ -206,8 +212,6 @@ class Points:
 				GROUP BY parent
 			) tl ON tl.parent = ts.name
 
-			WHERE ts.docstatus = 1
-			AND ts.start_date BETWEEN %s AND %s
 			GROUP BY emp.employee
 			""",
 			(self.avg_char_len, self.avg_char_len // 2, self.avg_working_hrs, start, end, start, end),
