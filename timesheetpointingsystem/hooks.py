@@ -150,7 +150,7 @@ app_license = "mit"
 
 scheduler_events = {
 	"cron": {
-		"00 10 * * *": ["timesheetpointingsystem.points.set_points"],
+		"00 10 * * *": ["timesheetpointingsystem.points.redis_queue"],
 	}
 }
 
