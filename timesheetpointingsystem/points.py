@@ -197,9 +197,6 @@ class Points:
 
 	# Set Daily Points
 	def set_daily_points(self):
-		if not self.setting.daily or self.setting.disable:
-			return
-
 		last_working_day = self.working_day()
 
 		if is_holiday(self.holiday_list):
@@ -211,9 +208,6 @@ class Points:
 
 	# Set Weekly Points
 	def set_weekly_points(self):
-		if not self.setting.weekly or self.setting.disable:
-			return
-
 		cur = getdate(today())
 		start = add_days(cur, -7 - cur.weekday())
 		end = add_days(start, 5)
@@ -224,9 +218,6 @@ class Points:
 
 	# Set Monthly Points
 	def set_monthly_points(self):
-		if not self.setting.monthly or self.setting.disable:
-			return
-
 		end = getdate(today())
 		end = end.replace(day=1)
 		start = add_months(end, -1)
@@ -239,12 +230,17 @@ class Points:
 
 def set_points():
 	point = Points()
-	point.set_daily_points()
+	if point.setting.disable:
+		return
+
+	if point.setting.daily:
+		point.set_daily_points()
 
 	date = getdate(today())
-	if date.weekday() == 0:
+	if date.weekday() == 0 and point.setting.weekly:
 		point.set_weekly_points()
-	if date.day == 1:
+
+	if date.day == 1 and point.setting.monthly:
 		point.set_monthly_points()
 
 
