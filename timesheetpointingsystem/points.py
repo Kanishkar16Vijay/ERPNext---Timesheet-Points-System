@@ -62,37 +62,6 @@ class Points:
 
 		return last_date
 
-	# Getting the starting working day of the previous week
-	def starting_working_day_for_last_week(self):
-		cur_date = getdate(today())
-
-		if cur_date.weekday() not in (5, 6):
-			cur_date = add_days(cur_date, -7)
-
-		week_day = add_days(cur_date, -cur_date.weekday())
-		for i in range(7):
-			check_date = add_days(week_day, i)
-
-			if not is_holiday(self.holiday_list, check_date):
-				return week_day
-
-		return week_day
-
-	# Getting the last working day of thr previous week
-	def ending_working_day_for_last_week(self, start):
-		end = start
-		cur = start
-		for _i in range(5):
-			cur = add_days(cur, 1)
-			if cur.weekday() in (5, 6):
-				break
-
-			if is_holiday(self.holiday_list, cur):
-				continue
-			end = cur
-
-		return end
-
 	# Getting working days
 	def cnt_working_days(self, start, end):
 		cnt = []
@@ -245,8 +214,9 @@ class Points:
 		if not self.setting.weekly or self.setting.disable:
 			return
 
-		start = self.starting_working_day_for_last_week()
-		end = self.ending_working_day_for_last_week(start)
+		cur = getdate(today())
+		start = add_days(cur, -7 - cur.weekday())
+		end = add_days(start, 5)
 
 		msg, pdf = self.points_summary("Weekly", start, end)
 
