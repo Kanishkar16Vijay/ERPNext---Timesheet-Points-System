@@ -161,7 +161,13 @@ class Points:
 			LEFT JOIN (
 				SELECT
 					employee,
-					SUM(total_leave_days) as leave_days
+					SUM(
+						DATEDIFF(
+							LEAST(to_date, %s),
+							GREATEST(from_date, %s)
+						)
+						+ 1
+					) as leave_days
 				FROM `tabLeave Application`
 				WHERE status="Approved" AND from_date<=%s AND to_date>=%s
 				GROUP BY employee
@@ -183,7 +189,17 @@ class Points:
 
 			GROUP BY emp.employee
 			""",
-			(self.avg_char_len, self.avg_char_len // 2, self.avg_working_hrs, start, end, start, end),
+			(
+				self.avg_char_len,
+				self.avg_char_len // 2,
+				self.avg_working_hrs,
+				end,
+				start,
+				end,
+				start,
+				start,
+				end,
+			),
 			as_dict=True,
 		)
 
