@@ -27,30 +27,34 @@ class Points:
 			frappe.log_error("Missing Telegram token/chat_id", "Telegram Config Error")
 			return
 
-		url = f"https://api.telegram.org/bot{self.token}/sendMessage"
-		payload = {"chat_id": self.chat, "text": msg, "parse_mode": "Markdown"}
+		session = requests.Session()
+		url = f"https://api.telegram.org/bot{self.token}"
 
 		try:
-			response = requests.post(url, data=payload)
-			if response.status_code != 200:
-				frappe.log_error(response.text, "Telegram Message Error")
-		except Exception:
-			frappe.log_error(frappe.get_traceback(), "Telegram Message Failed")
+			msg_response = session.post(
+				f"{url}/sendMessage",
+				data={
+					"chat_id": self.chat,
+					"text": msg,
+					"parse_mode": "Markdown",
+				},
+			)
+			msg_response.raise_for_status()
+			message_id = msg_response.json().get("result", {}).get("message_id")
 
-		url = f"https://api.telegram.org/bot{self.token}/sendDocument"
-		files = {
-			"document": ("Timesheet Report.pdf", pdf, "application/pdf"),
-		}
-		data = {
-			"chat_id": self.chat,
-			"caption": "Here's the report",
-		}
-		try:
-			response = requests.post(url, data=data, files=files)
-			if response.status_code != 200:
-				frappe.log_error(response.text, "Telegram PDF Send Error")
-		except Exception:
-			frappe.log_error(frappe.get_traceback(), "Telegram PDF Send Failed")
+			files = {"document": ("Timesheet Report.pdf", pdf, "application/pdf")}
+			data = {
+				"chat_id": self.chat,
+				"caption": "Timesheet Report",
+			}
+			if message_id:
+				data["reply_to_message_id"] = message_id
+
+			file_response = session.post(f"{url}/sendDocument", data=data, files=files)
+			file_response.raise_for_status()
+
+		except Exception as e:
+			frappe.log_error(f"{e!s}\n{frappe.get_traceback()}", "Telegram Send Error")
 
 	# Getting the previous working day
 	def working_day(self, last_date=None):
@@ -72,30 +76,40 @@ class Points:
 
 		return cnt
 
+	# Getting missing dates for timesheet
 	def missed_days(self, working_days):
 		miss_date = {}
+		timesheet_entries = frappe.get_all(
+			"Timesheet",
+			filters={"start_date": ["in", working_days]},
+			fields=["employee", "start_date"],
+			as_list=True,
+		)
+		leave_entries = frappe.get_all(
+			"Leave Application",
+			filters={
+				"status": "Approved",
+				"from_date": ["<=", max(working_days)],
+				"to_date": [">=", min(working_days)],
+			},
+			fields=["employee", "from_date", "to_date"],
+		)
+		timesheet_set = {(emp, str(date)) for emp, date in timesheet_entries}
 		for emp in self.emp_map:
-			dates = ""
+			dates = []
 			for date in working_days:
 				if (
-					not frappe.db.exists("Timesheet", {"employee": emp, "start_date": date})
-					and not is_holiday(self.holiday_list, date)
-					and not frappe.db.exists(
-						"Leave Application",
-						{
-							"employee": emp,
-							"status": "Approved",
-							"from_date": ["<=", date],
-							"to_date": [">=", date],
-						},
+					(emp, str(date)) not in timesheet_set
+					and not any(
+						l["from_date"] <= getdate(date) <= l["to_date"]
+						for l in leave_entries
+						if l["employee"] == emp
 					)
+					and not is_holiday(self.holiday_list, date)
 				):
-					dates += str(date)
-					dates += ", "
-			if dates:
-				miss_date[emp] = dates[:-2]
-			else:
-				miss_date[emp] = "-"
+					dates.append(str(date))
+
+			miss_date[emp] = ", ".join(dates) if dates else "-"
 
 		return miss_date
 
@@ -120,11 +134,11 @@ class Points:
 			html += f"""
 				<tr>
 					<td style="border:1px solid #ccc; text-align:center">{self.emp_map.get(row.employee)}</td>
-					<td style="border:1px solid #ccc; text-align:center">{len(working_days) - (row.leave_days or 0)}</td>
+					<td style="border:1px solid #ccc; text-align:center">{len(working_days) - row.leave_days}</td>
 					<td style="border:1px solid #ccc; text-align:center">{missed_date[row.employee]}</td>
-					<td style="border:1px solid #ccc; text-align:center">{row.worked_days or 0}</td>
-					<td style="border:1px solid #ccc; text-align:center">{row.des_len or 0}</td>
-					<td style="border:1px solid #ccc; text-align:center">{row.total_hrs_worked or 0}</td>
+					<td style="border:1px solid #ccc; text-align:center">{row.worked_days}</td>
+					<td style="border:1px solid #ccc; text-align:center">{row.des_len}</td>
+					<td style="border:1px solid #ccc; text-align:center">{row.total_hrs_worked}</td>
 				</tr>
 				"""
 		html += "<table></body></html>"
@@ -137,20 +151,20 @@ class Points:
 			"""
 			SELECT
 				emp.employee,
-				la.leave_days,
-				COUNT(ts.name) as worked_days,
-				SUM(tl.word_count) as des_len,
-				SUM(ts.total_hours) as total_hrs_worked,
+				COALESCE(la.leave_days, 0) AS leave_days,
+				COUNT(ts.name) AS worked_days,
+				COALESCE(SUM(tl.word_count), 0) AS des_len,
+				COALESCE(SUM(ts.total_hours), 0) AS total_hrs_worked,
 				CASE
 					WHEN ts.name IS NOT NULL THEN SUM(
 						1 +
 						CASE
-							WHEN tl.word_count >= %s THEN 2
-							WHEN tl.word_count >= %s THEN 1
+							WHEN tl.word_count >= %(avg_char_len)s THEN 2
+							WHEN tl.word_count >= %(half_char_len)s THEN 1
 							ELSE 0.5
 						END
 						+ CASE
-							WHEN ts.total_hours >= %s THEN 2
+							WHEN ts.total_hours >= %(avg_wrk_hrs)s THEN 2
 							ELSE 1
 						END
 						)
@@ -163,19 +177,19 @@ class Points:
 					employee,
 					SUM(
 						DATEDIFF(
-							LEAST(to_date, %s),
-							GREATEST(from_date, %s)
+							LEAST(to_date, %(end)s),
+							GREATEST(from_date, %(start)s)
 						)
 						+ 1
 					) as leave_days
 				FROM `tabLeave Application`
-				WHERE status="Approved" AND from_date<=%s AND to_date>=%s
+				WHERE status="Approved" AND from_date<=%(end)s AND to_date>=%(start)s
 				GROUP BY employee
 			) la ON la.employee = emp.employee
 
 			LEFT JOIN `tabTimesheet` ts ON ts.employee = emp.employee
 			AND ts.docstatus = 1
-			AND ts.start_date BETWEEN %s AND %s
+			AND ts.start_date BETWEEN %(start)s AND %(end)s
 
 			LEFT JOIN (
 				SELECT
@@ -189,17 +203,13 @@ class Points:
 
 			GROUP BY emp.employee
 			""",
-			(
-				self.avg_char_len,
-				self.avg_char_len // 2,
-				self.avg_working_hrs,
-				end,
-				start,
-				end,
-				start,
-				start,
-				end,
-			),
+			{
+				"avg_char_len": self.avg_char_len,
+				"half_char_len": self.avg_char_len // 2,
+				"avg_wrk_hrs": self.avg_working_hrs,
+				"start": start,
+				"end": end,
+			},
 			as_dict=True,
 		)
 
