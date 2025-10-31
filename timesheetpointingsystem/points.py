@@ -17,9 +17,7 @@ class Points:
 			"Company", "Aerele Technologies", "default_holiday_list"
 		)
 		if not self.holiday_list:
-			self.send_telegram_message(
-				"Plese set default holiday list in Company or holiday list in Point Configuration"
-			)
+			frappe.log_error("Holiday List not set in Points Configuration or Company", "Holiday List Error")
 
 	# Sending Messages on Telegram Group Bot
 	def send_telegram_message(self, msg, pdf):
@@ -78,38 +76,51 @@ class Points:
 
 	# Getting missing dates for timesheet
 	def missed_days(self, working_days):
-		miss_date = {}
-		timesheet_entries = frappe.get_all(
-			"Timesheet",
-			filters={"start_date": ["in", working_days]},
-			fields=["employee", "start_date"],
-			as_list=True,
-		)
-		leave_entries = frappe.get_all(
-			"Leave Application",
-			filters={
-				"status": "Approved",
-				"from_date": ["<=", max(working_days)],
-				"to_date": [">=", min(working_days)],
-			},
-			fields=["employee", "from_date", "to_date"],
-		)
-		timesheet_set = {(emp, str(date)) for emp, date in timesheet_entries}
-		for emp in self.emp_map:
-			dates = []
-			for date in working_days:
-				if (
-					(emp, str(date)) not in timesheet_set
-					and not any(
-						l["from_date"] <= getdate(date) <= l["to_date"]
-						for l in leave_entries
-						if l["employee"] == emp
-					)
-					and not is_holiday(self.holiday_list, date)
-				):
-					dates.append(str(date))
+		if not working_days:
+			return {}
 
-			miss_date[emp] = ", ".join(dates) if dates else "-"
+		date_cte = " UNION ALL ".join([f"SELECT DATE('{d}') AS work_date" for d in working_days])
+
+		query = f"""
+			WITH working_dates AS (
+				{date_cte}
+			)
+			SELECT
+				emp.name AS employee,
+				GROUP_CONCAT(DATE_FORMAT(w.work_date, '%Y-%m-%d') ORDER BY w.work_date) AS missed_dates
+			FROM `tabEmployee` emp
+
+			CROSS JOIN working_dates w
+
+			LEFT JOIN `tabTimesheet` ts
+				ON ts.employee = emp.name
+				AND ts.docstatus = 1
+				AND DATE(ts.start_date) = w.work_date
+
+			LEFT JOIN `tabLeave Application` la
+				ON la.employee = emp.name
+				AND la.status = 'Approved'
+				AND w.work_date BETWEEN la.from_date AND la.to_date
+
+			LEFT JOIN `tabHoliday List` hl
+				ON hl.name = emp.holiday_list
+
+			LEFT JOIN `tabHoliday` h
+				ON h.parent = hl.name
+				AND h.holiday_date = w.work_date
+
+			WHERE ts.name IS NULL
+			AND la.name IS NULL
+			AND h.name IS NULL
+			GROUP BY emp.name;
+		"""
+
+		results = frappe.db.sql(query, as_dict=True)
+		miss_date = {row["employee"]: row["missed_dates"] or "-" for row in results}
+
+		for emp in self.emp_map:
+			if emp not in miss_date:
+				miss_date[emp] = "-"
 
 		return miss_date
 
@@ -117,28 +128,39 @@ class Points:
 	def generate_pdf(self, title, data, start, end):
 		working_days = self.cnt_working_days(start, end)
 		missed_date = self.missed_days(working_days)
-		html = f"""<html><head><meta charset="utf-8"></head><body>
+		style = """
+			<style>
+				body { font-family: Arial, sans-serif; font-size: 12px; }
+				h1 { text-align: center; color: #333; }
+				p { text-align: center; }
+				table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+				th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+				th { background-color: #f2f2f2; font-weight: bold; }
+			</style>
+			"""
+
+		html = f"""<html><head><meta charset="utf-8">{style}</head><body>
 			<h1 style="text-align:center">{title} Timesheet Report</h1>
 			<p>Period : {start} → {end}</p>
 			<table>
 				<tr>
-					<th style="border:1px solid #ccc">Employee</th>
-					<th style="border:1px solid #ccc">Working Days</th>
-					<th style="border:1px solid #ccc">Not Filled Timesheet Date</th>
-					<th style="border:1px solid #ccc">Timesheet Days</th>
-					<th style="border:1px solid #ccc">Description Char Length</th>
-					<th style="border:1px solid #ccc">Total Worked Hours</th>
+					<th>Employee</th>
+					<th>Working Days</th>
+					<th>Not Filled Timesheet Date</th>
+					<th>Timesheet Days</th>
+					<th>Description Char Length</th>
+					<th>Total Worked Hours</th>
 				</tr>
 			"""
 		for row in data:
 			html += f"""
 				<tr>
-					<td style="border:1px solid #ccc; text-align:center">{self.emp_map.get(row.employee)}</td>
-					<td style="border:1px solid #ccc; text-align:center">{len(working_days) - row.leave_days}</td>
-					<td style="border:1px solid #ccc; text-align:center">{missed_date[row.employee]}</td>
-					<td style="border:1px solid #ccc; text-align:center">{row.worked_days}</td>
-					<td style="border:1px solid #ccc; text-align:center">{row.des_len}</td>
-					<td style="border:1px solid #ccc; text-align:center">{row.total_hrs_worked}</td>
+					<td>{self.emp_map.get(row.employee)}</td>
+					<td>{len(working_days) - row.leave_days}</td>
+					<td>{missed_date[row.employee]}</td>
+					<td>{row.worked_days}</td>
+					<td>{row.des_len}</td>
+					<td>{row.total_hrs_worked}</td>
 				</tr>
 				"""
 		html += "<table></body></html>"
