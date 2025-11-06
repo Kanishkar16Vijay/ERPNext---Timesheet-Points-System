@@ -116,49 +116,6 @@ class Points:
 
 		return miss_date
 
-	# Generate pdf
-	def generate_pdf(self, title, data, start, end):
-		working_days = self.cnt_working_days(start, end)
-		missed_date = self.missed_days(working_days)
-		style = """
-			<style>
-				body { font-family: Arial, sans-serif; font-size: 12px; }
-				h1 { text-align: center; color: #333; }
-				p { text-align: center; }
-				table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-				th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
-				th { background-color: #f2f2f2; font-weight: bold; }
-			</style>
-			"""
-
-		html = f"""<html><head><meta charset="utf-8">{style}</head><body>
-			<h1 style="text-align:center">{title} Timesheet Report</h1>
-			<p>Period : {start} → {end}</p>
-			<table>
-				<tr>
-					<th>Employee</th>
-					<th>Working Days</th>
-					<th>Not Filled Timesheet Date</th>
-					<th>Timesheet Days</th>
-					<th>Description Char Length</th>
-					<th>Total Worked Hours</th>
-				</tr>
-			"""
-		for row in data:
-			html += f"""
-				<tr>
-					<td>{self.emp_map.get(row.employee)}</td>
-					<td>{len(working_days) - row.leave_days}</td>
-					<td>{missed_date[row.employee]}</td>
-					<td>{row.worked_days}</td>
-					<td>{row.des_len}</td>
-					<td>{row.total_hrs_worked}</td>
-				</tr>
-				"""
-		html += "<table></body></html>"
-
-		return get_pdf(html)
-
 	# Creating Summary
 	def points_summary(self, title, start, end):
 		data = frappe.db.sql(
@@ -228,10 +185,49 @@ class Points:
 		)
 
 		summary = [f"{title} Points : {start} - {end}\n"]
-		for row in data:
-			summary.append(f"{self.emp_map.get(row.employee)} : {row.total_points} points")
 
-		pdf = self.generate_pdf(title, data, start, end)
+		working_days = self.cnt_working_days(start, end)
+		missed_date = self.missed_days(working_days)
+		no_wrk_days = len(working_days)
+		style = """
+			<style>
+				body { font-family: Arial, sans-serif; font-size: 12px; }
+				h1 { text-align: center; color: #333; }
+				p { text-align: center; }
+				table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+				th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+			</style>
+			"""
+
+		html = f"""<html><head>{style}</head><body>
+			<h1 style="text-align:center">{title} Timesheet Report</h1>
+			<p>Period : {start} → {end}</p>
+			<table>
+				<tr>
+					<th>Employee</th>
+					<th>Working Days</th>
+					<th>Not Filled Timesheet Date</th>
+					<th>Timesheet Days</th>
+					<th>Description Char Length</th>
+					<th>Total Worked Hours</th>
+				</tr>
+			"""
+		for row in data:
+			html += f"""
+				<tr>
+					<td>{self.emp_map.get(row.employee)}</td>
+					<td>{no_wrk_days - row.leave_days}</td>
+					<td>{missed_date[row.employee]}</td>
+					<td>{row.worked_days}</td>
+					<td>{row.des_len}</td>
+					<td>{row.total_hrs_worked}</td>
+				</tr>
+				"""
+			summary.append(f"{self.emp_map.get(row.employee)} : {row.total_points} points")
+		
+		html += "<table></body></html>"
+
+		pdf = get_pdf(html)
 
 		return "\n".join(summary), pdf
 
