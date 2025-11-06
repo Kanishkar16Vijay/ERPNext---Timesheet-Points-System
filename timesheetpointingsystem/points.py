@@ -102,16 +102,8 @@ class Points:
 				AND la.status = 'Approved'
 				AND w.work_date BETWEEN la.from_date AND la.to_date
 
-			LEFT JOIN `tabHoliday List` hl
-				ON hl.name = emp.holiday_list
-
-			LEFT JOIN `tabHoliday` h
-				ON h.parent = hl.name
-				AND h.holiday_date = w.work_date
-
 			WHERE ts.name IS NULL
 			AND la.name IS NULL
-			AND h.name IS NULL
 			GROUP BY emp.name;
 		"""
 
@@ -275,9 +267,18 @@ class Points:
 
 		self.send_telegram_message(msg, pdf)
 
+	# Set Points for Custom dates
+	def set_custom_points(self, start, end):
+		msg, pdf = self.points_summary("Custom", start, end)
+		# self.send_telegram_message(msg, pdf)
 
-def set_points():
+
+def set_points(start=None, end=None):
 	point = Points()
+	if start and end:
+		point.set_custom_points(start, end)
+		return
+
 	if point.setting.disable:
 		return
 
@@ -292,5 +293,6 @@ def set_points():
 		point.set_monthly_points()
 
 
-def redis_queue():
-	frappe.enqueue(method="timesheetpointingsystem.points.set_points", queue="long")
+@frappe.whitelist()
+def redis_queue(start=None, end=None):
+	frappe.enqueue(method="timesheetpointingsystem.points.set_points", queue="long", start=start, end=end)
