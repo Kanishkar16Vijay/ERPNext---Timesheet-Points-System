@@ -16,8 +16,6 @@ class Points:
 		self.holiday_list = self.setting.holiday_list or frappe.get_value(
 			"Company", "Aerele Technologies", "default_holiday_list"
 		)
-		if not self.holiday_list:
-			frappe.log_error("Holiday List not set in Points Configuration or Company", "Holiday List Error")
 
 	# Sending Messages on Telegram Group Bot
 	def send_telegram_message(self, msg, pdf):
@@ -266,11 +264,15 @@ class Points:
 	# Set Points for Custom dates
 	def set_custom_points(self, start, end):
 		msg, pdf = self.points_summary("Custom", start, end)
-		# self.send_telegram_message(msg, pdf)
+		self.send_telegram_message(msg, pdf)
 
 
 def set_points(start=None, end=None):
 	point = Points()
+	if not point.holiday_list:
+		frappe.log_error(message="Holiday List not set in Points Configuration or Company", title="Holiday List Error")
+		return
+	
 	if start and end:
 		point.set_custom_points(start, end)
 		return
