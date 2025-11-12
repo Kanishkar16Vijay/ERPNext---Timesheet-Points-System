@@ -245,9 +245,6 @@ class Points:
 	def set_daily_points(self):
 		last_working_day = self.working_day()
 
-		if is_holiday(self.holiday_list):
-			return None
-
 		msg, pdf = self.points_summary("EOD", last_working_day, last_working_day)
 
 		self.send_telegram_message(msg, pdf)
@@ -292,7 +289,7 @@ def set_points(start=None, end=None):
 	if point.setting.disable:
 		return
 
-	if point.setting.daily:
+	if point.setting.daily and not is_holiday(point.holiday_list):
 		point.set_daily_points()
 
 	date = getdate(today())
