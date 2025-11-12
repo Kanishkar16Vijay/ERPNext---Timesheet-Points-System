@@ -17,6 +17,8 @@ class Points:
 			"Company", "Aerele Technologies", "default_holiday_list"
 		)
 		self.rank = self.setting.rank
+		__employee = tuple(emp[0] for emp in frappe.db.sql("SELECT employee FROM `tabEmployee List`", as_list=True))
+		self.employees_to_ignore = ', '.join(f"'{x}'" for x in __employee) or "'NO_EMPLOYEE'"
 
 	# Sending Messages on Telegram Group Bot
 	def send_telegram_message(self, msg, pdf):
@@ -91,7 +93,7 @@ class Points:
 				FROM `tabEmployee` e
 				JOIN working_dates w ON 1=1
 				WHERE e.status="Active"
-				
+				AND e.employee NOT IN ({self.employees_to_ignore})
 			)
 			SELECT
 				epd.employee AS employee,
@@ -125,7 +127,7 @@ class Points:
 	# Creating Summary
 	def points_summary(self, title, start, end):
 		data = frappe.db.sql(
-			"""
+			f"""
 			SELECT
 				emp.employee,
 				COALESCE(la.leave_days, 0) AS leave_days,
@@ -136,13 +138,16 @@ class Points:
 					WHEN ts.name IS NOT NULL THEN SUM(
 						1 +
 						CASE
-							WHEN tl.word_count >= %(avg_char_len)s THEN 2
-							WHEN tl.word_count >= %(half_char_len)s THEN 1
-							ELSE 0.5
+							WHEN tl.word_count >= {self.avg_char_len} THEN 2
+							WHEN tl.word_count >= {self.avg_char_len//2} THEN 1
+							WHEN tl.word_count >= 1 THEN 0.5
+							ELSE 0
 						END
 						+ CASE
-							WHEN ts.total_hours >= %(avg_wrk_hrs)s THEN 2
-							ELSE 1
+							WHEN ts.total_hours >= {self.avg_working_hrs} THEN 2
+							WHEN ts.total_hours >= {self.avg_working_hrs//2} THEN 1
+							WHEN ts.total_hours >= 1.5 THEN 0.5
+							ELSE 0
 						END
 						)
 					ELSE 0
@@ -154,19 +159,19 @@ class Points:
 					employee,
 					SUM(
 						DATEDIFF(
-							LEAST(to_date, %(end)s),
-							GREATEST(from_date, %(start)s)
+							LEAST(to_date, '{end}'),
+							GREATEST(from_date, '{start}')
 						)
 						+ 1
 					) as leave_days
 				FROM `tabLeave Application`
-				WHERE status="Approved" AND from_date<=%(end)s AND to_date>=%(start)s
+				WHERE status="Approved" AND from_date<='{end}' AND to_date>='{start}'
 				GROUP BY employee
 			) la ON la.employee = emp.employee
 
 			LEFT JOIN `tabTimesheet` ts ON ts.employee = emp.employee
 			AND ts.docstatus = 1
-			AND ts.start_date BETWEEN %(start)s AND %(end)s
+			AND ts.start_date BETWEEN '{start}' AND '{end}'
 
 			LEFT JOIN (
 				SELECT
@@ -179,16 +184,10 @@ class Points:
 			) tl ON tl.parent = ts.name
 
 			WHERE emp.status="Active"
+			AND emp.employee NOT IN ({self.employees_to_ignore})
 			GROUP BY emp.employee
 			ORDER BY total_points DESC
 			""",
-			{
-				"avg_char_len": self.avg_char_len,
-				"half_char_len": self.avg_char_len // 2,
-				"avg_wrk_hrs": self.avg_working_hrs,
-				"start": start,
-				"end": end,
-			},
 			as_dict=True,
 		)
 
