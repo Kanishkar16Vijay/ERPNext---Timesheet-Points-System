@@ -7,7 +7,7 @@ from frappe.utils.pdf import get_pdf
 
 class Points:
 	def __init__(self):
-		self.emp_map = dict(frappe.get_all("Employee", fields=["name", "employee_name"], as_list=True))
+		self.emp_map = dict(frappe.get_all("Employee", filters={"status":"Active"}, fields=["name", "employee_name"], as_list=True))
 		self.setting = frappe.get_doc("Points Configuration")
 		self.token = self.setting.get_password("token")
 		self.chat = self.setting.chat
@@ -16,6 +16,7 @@ class Points:
 		self.holiday_list = self.setting.holiday_list or frappe.get_value(
 			"Company", "Aerele Technologies", "default_holiday_list"
 		)
+		self.rank = self.setting.rank
 
 	# Sending Messages on Telegram Group Bot
 	def send_telegram_message(self, msg, pdf):
@@ -82,27 +83,34 @@ class Points:
 		query = f"""
 			WITH working_dates AS (
 				{date_cte}
+			),
+			employee_dates AS (
+				SELECT
+					e.name AS employee,
+					w.work_date
+				FROM `tabEmployee` e
+				JOIN working_dates w ON 1=1
+				WHERE e.status="Active"
+				
 			)
 			SELECT
-				emp.name AS employee,
-				GROUP_CONCAT(DATE_FORMAT(w.work_date, '%Y-%m-%d') ORDER BY w.work_date) AS missed_dates
-			FROM `tabEmployee` emp
-
-			CROSS JOIN working_dates w
+				epd.employee AS employee,
+				GROUP_CONCAT(DATE_FORMAT(epd.work_date, '%Y-%m-%d') ORDER BY epd.work_date) AS missed_dates
+			FROM employee_dates epd
 
 			LEFT JOIN `tabTimesheet` ts
-				ON ts.employee = emp.name
+				ON ts.employee = epd.employee
 				AND ts.docstatus = 1
-				AND DATE(ts.start_date) = w.work_date
+				AND DATE(ts.start_date) = epd.work_date
 
 			LEFT JOIN `tabLeave Application` la
-				ON la.employee = emp.name
+				ON la.employee = epd.employee
 				AND la.status = 'Approved'
-				AND w.work_date BETWEEN la.from_date AND la.to_date
+				AND epd.work_date BETWEEN la.from_date AND la.to_date
 
 			WHERE ts.name IS NULL
 			AND la.name IS NULL
-			GROUP BY emp.name;
+			GROUP BY epd.employee;
 		"""
 
 		results = frappe.db.sql(query, as_dict=True)
@@ -170,7 +178,9 @@ class Points:
 				GROUP BY parent
 			) tl ON tl.parent = ts.name
 
+			WHERE emp.status="Active"
 			GROUP BY emp.employee
+			ORDER BY total_points DESC
 			""",
 			{
 				"avg_char_len": self.avg_char_len,
@@ -210,6 +220,7 @@ class Points:
 					<th>Total Worked Hours</th>
 				</tr>
 			"""
+		rank_cnt = 0
 		for row in data:
 			html += f"""
 				<tr>
@@ -221,7 +232,9 @@ class Points:
 					<td>{row.total_hrs_worked}</td>
 				</tr>
 				"""
-			summary.append(f"{self.emp_map.get(row.employee)} : {row.total_points} points")
+			if rank_cnt<self.rank :
+				summary.append(f"{self.emp_map.get(row.employee)} : {row.total_points} points")
+				rank_cnt += 1
 		
 		html += "<table></body></html>"
 

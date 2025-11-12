@@ -14,7 +14,9 @@
   "daily",
   "weekly",
   "monthly",
-  "holiday_list"
+  "holiday_list",
+  "rank",
+  "employees_to_ignore"
  ],
  "fields": [
   {
@@ -70,13 +72,25 @@
    "fieldtype": "Link",
    "label": "Holiday List",
    "options": "Holiday List"
+  },
+  {
+   "fieldname": "rank",
+   "fieldtype": "Int",
+   "label": "Ranking by",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "employees_to_ignore",
+   "fieldtype": "Table MultiSelect",
+   "label": "Employees to Ignore",
+   "options": "Employee List"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-10-09 17:12:51.772703",
+ "modified": "2025-11-11 12:34:21.361010",
  "modified_by": "Administrator",
  "module": "Timesheet Pointing System",
  "name": "Points Configuration",
