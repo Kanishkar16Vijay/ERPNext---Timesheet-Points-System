@@ -40,6 +40,14 @@ frappe.ui.form.on("Points Configuration", {
 			frm.doc.rank = 5;
 			frm.refresh_field("rank");
 		}
+		if (frm.doc.avg_working_hrs === 0) {
+			frm.doc.avg_working_hrs = 6;
+			frm.refresh_field("avg_working_hrs");
+		}
+		if (frm.doc.avg_char_len === 0) {
+			frm.doc.avg_char_len = 40;
+			frm.refresh_field("avg_char_len");
+		}
 	},
 
 	disable(frm) {
