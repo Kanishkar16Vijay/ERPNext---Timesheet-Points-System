@@ -7,7 +7,11 @@ from frappe.utils.pdf import get_pdf
 
 class Points:
 	def __init__(self):
-		self.emp_map = dict(frappe.get_all("Employee", filters={"status":"Active"}, fields=["name", "employee_name"], as_list=True))
+		self.emp_map = dict(
+			frappe.get_all(
+				"Employee", filters={"status": "Active"}, fields=["name", "employee_name"], as_list=True
+			)
+		)
 		self.setting = frappe.get_doc("Points Configuration")
 		self.token = self.setting.get_password("token")
 		self.chat = self.setting.chat
@@ -17,8 +21,10 @@ class Points:
 			"Company", "Aerele Technologies", "default_holiday_list"
 		)
 		self.rank = self.setting.rank
-		__employee = tuple(emp[0] for emp in frappe.db.sql("SELECT employee FROM `tabEmployee List`", as_list=True))
-		self.employees_to_ignore = ', '.join(f"'{x}'" for x in __employee) or "'NO_EMPLOYEE'"
+		__employee = tuple(
+			emp[0] for emp in frappe.db.sql("SELECT employee FROM `tabEmployee List`", as_list=True)
+		)
+		self.employees_to_ignore = ", ".join(f"'{x}'" for x in __employee) or "'NO_EMPLOYEE'"
 
 	# Sending Messages on Telegram Group Bot
 	def send_telegram_message(self, msg, pdf):
@@ -231,10 +237,10 @@ class Points:
 					<td>{row.total_hrs_worked}</td>
 				</tr>
 				"""
-			if rank_cnt<self.rank :
+			if rank_cnt < self.rank:
 				summary.append(f"{self.emp_map.get(row.employee)} : {row.total_points} points")
 				rank_cnt += 1
-		
+
 		html += "<table></body></html>"
 
 		pdf = get_pdf(html)
@@ -279,9 +285,11 @@ class Points:
 def set_points(start=None, end=None):
 	point = Points()
 	if not point.holiday_list:
-		frappe.log_error(message="Holiday List not set in Points Configuration or Company", title="Holiday List Error")
+		frappe.log_error(
+			message="Holiday List not set in Points Configuration or Company", title="Holiday List Error"
+		)
 		return
-	
+
 	if start and end:
 		point.set_custom_points(start, end)
 		return

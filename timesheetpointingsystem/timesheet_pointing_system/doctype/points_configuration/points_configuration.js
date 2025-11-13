@@ -36,7 +36,7 @@ frappe.ui.form.on("Points Configuration", {
 			});
 			d.show();
 		});
-		if(frm.doc.rank === 0){
+		if (frm.doc.rank === 0) {
 			frm.doc.rank = 5;
 			frm.refresh_field("rank");
 		}
