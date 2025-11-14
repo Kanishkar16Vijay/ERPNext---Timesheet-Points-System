@@ -30,7 +30,7 @@ class Points:
 	# Sending Messages on Telegram Group Bot
 	def send_telegram_message(self, msg, pdf):
 		if not self.token or not self.chat:
-			frappe.log_error("Missing Telegram token/chat_id", "Telegram Config Error")
+			frappe.log_error("Telegram Config Error", "Missing Telegram token/chat_id")
 			return
 
 		session = requests.Session()
@@ -65,7 +65,7 @@ class Points:
 			file_response.raise_for_status()
 
 		except Exception as e:
-			frappe.log_error(f"{e!s}\n{frappe.get_traceback()}", "Telegram Send Error")
+			frappe.log_error("Telegram Send Error", f"{e!s}\n{frappe.get_traceback()}")
 
 	# Getting the previous working day
 	def working_day(self, last_date=None):
@@ -246,6 +246,8 @@ class Points:
 			if rank_cnt < self.rank:
 				summary.append(f"{self.emp_map.get(row.employee)} : {row.total_points} points")
 				rank_cnt += 1
+		if title != "Custom":
+			summary.append(f"#{title}")
 
 		html += "<table></body></html>"
 
@@ -257,7 +259,7 @@ class Points:
 	def set_daily_points(self):
 		last_working_day = self.working_day()
 
-		msg, pdf = self.points_summary("EOD", last_working_day, last_working_day)
+		msg, pdf = self.points_summary("Daily", last_working_day, last_working_day)
 
 		self.send_telegram_message(msg, pdf)
 
@@ -291,9 +293,7 @@ class Points:
 def set_points(start=None, end=None):
 	point = Points()
 	if not point.holiday_list:
-		frappe.log_error(
-			message="Holiday List not set in Points Configuration or Company", title="Holiday List Error"
-		)
+		frappe.log_error("Holiday List Error", "Holiday List not set in Points Configuration or Company")
 		return
 
 	if start and end:
