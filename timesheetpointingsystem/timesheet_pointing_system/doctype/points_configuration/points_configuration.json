@@ -10,6 +10,7 @@
   "avg_char_len",
   "token",
   "chat",
+  "thread_id",
   "column_break_kcav",
   "daily",
   "weekly",
@@ -88,13 +89,18 @@
    "fieldtype": "Table MultiSelect",
    "label": "Employees to Ignore",
    "options": "Employee List"
+  },
+  {
+   "fieldname": "thread_id",
+   "fieldtype": "Int",
+   "label": "Thread ID"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-11-13 13:31:10.783477",
+ "modified": "2025-11-13 18:17:46.368981",
  "modified_by": "Administrator",
  "module": "Timesheet Pointing System",
  "name": "Points Configuration",

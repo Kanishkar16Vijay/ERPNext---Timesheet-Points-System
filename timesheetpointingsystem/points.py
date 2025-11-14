@@ -15,6 +15,7 @@ class Points:
 		self.setting = frappe.get_doc("Points Configuration")
 		self.token = self.setting.get_password("token")
 		self.chat = self.setting.chat
+		self.thread = self.setting.thread_id
 		self.avg_working_hrs = self.setting.avg_working_hrs
 		self.avg_char_len = self.setting.avg_char_len
 		self.holiday_list = self.setting.holiday_list or frappe.get_value(
@@ -36,26 +37,31 @@ class Points:
 		url = f"https://api.telegram.org/bot{self.token}"
 
 		try:
-			msg_response = session.post(
-				f"{url}/sendMessage",
-				data={
-					"chat_id": self.chat,
-					"text": msg,
-					"parse_mode": "Markdown",
-				},
-			)
+			payload = {
+				"chat_id": self.chat,
+				"text": msg,
+				"parse_mode": "Markdown",
+			}
+			if self.thread:
+				payload["message_thread_id"] = self.thread
+
+			msg_response = session.post(f"{url}/sendMessage", data=payload)
 			msg_response.raise_for_status()
+
 			message_id = msg_response.json().get("result", {}).get("message_id")
 
 			files = {"document": ("Timesheet Report.pdf", pdf, "application/pdf")}
-			data = {
+			payload = {
 				"chat_id": self.chat,
 				"caption": "Timesheet Report",
 			}
-			if message_id:
-				data["reply_to_message_id"] = message_id
+			if self.thread:
+				payload["message_thread_id"] = self.thread
 
-			file_response = session.post(f"{url}/sendDocument", data=data, files=files)
+			if message_id:
+				payload["reply_to_message_id"] = message_id
+
+			file_response = session.post(f"{url}/sendDocument", data=payload, files=files)
 			file_response.raise_for_status()
 
 		except Exception as e:
