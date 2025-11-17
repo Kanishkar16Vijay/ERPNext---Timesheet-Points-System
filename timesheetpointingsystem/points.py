@@ -137,7 +137,7 @@ class Points:
 		return miss_date
 
 	# Creating Summary
-	def points_summary(self, title, start, end):
+	def points_summary(self, title, start, end, report):
 		data = frappe.db.sql(
 			f"""
 			SELECT
@@ -198,16 +198,17 @@ class Points:
 			WHERE emp.status="Active"
 			AND emp.employee NOT IN ({self.employees_to_ignore})
 			GROUP BY emp.employee
-			ORDER BY total_points DESC
+			ORDER BY total_points DESC, ts.total_hours DESC
 			""",
 			as_dict=True,
 		)
 
-		summary = [f"{title} Points : {start} - {end}\n"]
-
 		working_days = self.cnt_working_days(start, end)
 		missed_date = self.missed_days(working_days)
 		no_wrk_days = len(working_days)
+		if report:
+			return data, missed_date, no_wrk_days
+
 		style = """
 			<style>
 				body { font-family: Arial, sans-serif; font-size: 12px; }
@@ -232,6 +233,7 @@ class Points:
 				</tr>
 			"""
 		rank_cnt = 0
+		summary = [f"{title} Points : {start} - {end}\n"]
 		for row in data:
 			html += f"""
 				<tr>
@@ -290,11 +292,15 @@ class Points:
 		self.send_telegram_message(msg, pdf)
 
 
-def set_points(start=None, end=None):
+@frappe.whitelist()
+def set_points(start=None, end=None, report=None):
 	point = Points()
 	if not point.holiday_list:
 		frappe.log_error("Holiday List Error", "Holiday List not set in Points Configuration or Company")
 		return
+
+	if report:
+		return point.points_summary(None, start, end, report)
 
 	if start and end:
 		point.set_custom_points(start, end)
