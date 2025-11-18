@@ -22,9 +22,11 @@ class Points:
 			"Company", "Aerele Technologies", "default_holiday_list"
 		)
 		self.rank = self.setting.rank
-		self.employees_to_ignore = (
-			", ".join(f"'{x.employee}'" for x in self.setting.employees_to_ignore) or "'NO_EMPLOYEE'"
+		self.employees_to_ignore = tuple(frappe.get_all("Employee List", pluck="employee")) or (
+			"NO_EMPLOYEE",
 		)
+		if len(self.employees_to_ignore) == 1:
+			self.employees_to_ignore = f"('{self.employees_to_ignore[0]}')"
 
 	# Sending Messages on Telegram Group Bot
 	def send_telegram_message(self, msg, pdf):
@@ -104,7 +106,7 @@ class Points:
 				FROM `tabEmployee` e
 				JOIN working_dates w ON 1=1
 				WHERE e.status="Active"
-				AND e.employee NOT IN ({self.employees_to_ignore})
+				AND e.employee NOT IN {self.employees_to_ignore}
 			)
 			SELECT
 				epd.employee AS employee,
@@ -195,7 +197,7 @@ class Points:
 			) tl ON tl.parent = ts.name
 
 			WHERE emp.status="Active"
-			AND emp.employee NOT IN ({self.employees_to_ignore})
+			AND emp.employee NOT IN {self.employees_to_ignore}
 			GROUP BY emp.employee
 			ORDER BY total_points DESC, ts.total_hours DESC
 			""",
@@ -293,30 +295,33 @@ class Points:
 
 @frappe.whitelist()
 def set_points(start=None, end=None, report=None):
-	point = Points()
-	if not point.holiday_list:
-		frappe.log_error("Holiday List Error", "Holiday List not set in Points Configuration or Company")
-		return
+	try:
+		point = Points()
+		if not point.holiday_list:
+			frappe.log_error("Holiday List Error", "Holiday List not set in Points Configuration or Company")
+			return
 
-	if report:
-		return point.points_summary(None, start, end, report)
+		if report:
+			return point.points_summary(None, start, end, report)
 
-	if start and end:
-		point.set_custom_points(start, end)
-		return
+		if start and end:
+			point.set_custom_points(start, end)
+			return
 
-	if point.setting.disable:
-		return
+		if point.setting.disable:
+			return
 
-	if point.setting.daily and not is_holiday(point.holiday_list):
-		point.set_daily_points()
+		if point.setting.daily and not is_holiday(point.holiday_list):
+			point.set_daily_points()
 
-	date = getdate(today())
-	if date.weekday() == 0 and point.setting.weekly:
-		point.set_weekly_points()
+		date = getdate(today())
+		if date.weekday() == 0 and point.setting.weekly:
+			point.set_weekly_points()
 
-	if date.day == 1 and point.setting.monthly:
-		point.set_monthly_points()
+		if date.day == 1 and point.setting.monthly:
+			point.set_monthly_points()
+	except Exception:
+		frappe.log_error("Set Points Failed", frappe.get_traceback(with_context=True))
 
 
 @frappe.whitelist()
