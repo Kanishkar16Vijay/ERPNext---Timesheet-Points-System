@@ -22,10 +22,9 @@ class Points:
 			"Company", "Aerele Technologies", "default_holiday_list"
 		)
 		self.rank = self.setting.rank
-		__employee = tuple(
-			emp[0] for emp in frappe.db.sql("SELECT employee FROM `tabEmployee List`", as_list=True)
+		self.employees_to_ignore = (
+			", ".join(f"'{x.employee}'" for x in self.setting.employees_to_ignore) or "'NO_EMPLOYEE'"
 		)
-		self.employees_to_ignore = ", ".join(f"'{x}'" for x in __employee) or "'NO_EMPLOYEE'"
 
 	# Sending Messages on Telegram Group Bot
 	def send_telegram_message(self, msg, pdf):
@@ -261,7 +260,7 @@ class Points:
 	def set_daily_points(self):
 		last_working_day = self.working_day()
 
-		msg, pdf = self.points_summary("Daily", last_working_day, last_working_day)
+		msg, pdf = self.points_summary("Daily", last_working_day, last_working_day, report=None)
 
 		self.send_telegram_message(msg, pdf)
 
@@ -271,7 +270,7 @@ class Points:
 		start = add_days(cur, -7 - cur.weekday())
 		end = add_days(start, 5)
 
-		msg, pdf = self.points_summary("Weekly", start, end)
+		msg, pdf = self.points_summary("Weekly", start, end, report=None)
 
 		self.send_telegram_message(msg, pdf)
 
@@ -282,13 +281,13 @@ class Points:
 		start = add_months(end, -1)
 		end = add_days(end, -1)
 
-		msg, pdf = self.points_summary("Monthly", start, end)
+		msg, pdf = self.points_summary("Monthly", start, end, report=None)
 
 		self.send_telegram_message(msg, pdf)
 
 	# Set Points for Custom dates
 	def set_custom_points(self, start, end):
-		msg, pdf = self.points_summary("Custom", start, end)
+		msg, pdf = self.points_summary("Custom", start, end, report=None)
 		self.send_telegram_message(msg, pdf)
 
 
