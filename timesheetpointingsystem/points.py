@@ -22,11 +22,14 @@ class Points:
 			"Company", "Aerele Technologies", "default_holiday_list"
 		)
 		self.rank = self.setting.rank
-		self.employees_to_ignore = tuple(frappe.get_all("Employee List", pluck="employee")) or (
-			"NO_EMPLOYEE",
-		)
-		if len(self.employees_to_ignore) == 1:
-			self.employees_to_ignore = f"('{self.employees_to_ignore[0]}')"
+		self.employees_to_ignore = tuple(frappe.get_all("Employee List", pluck="employee"))
+		if self.employees_to_ignore:
+			if len(self.employees_to_ignore) == 1:
+				self.employees_to_ignore = f"AND emp.employee NOT IN ('{self.employees_to_ignore[0]}')"
+			else:
+				self.employees_to_ignore = f"AND emp.employee NOT IN {self.employees_to_ignore}"
+		else:
+			self.employees_to_ignore = ""
 
 	# Sending Messages on Telegram Group Bot
 	def send_telegram_message(self, msg, pdf):
@@ -101,12 +104,12 @@ class Points:
 			),
 			employee_dates AS (
 				SELECT
-					e.name AS employee,
+					emp.name AS employee,
 					w.work_date
-				FROM `tabEmployee` e
+				FROM `tabEmployee` emp
 				JOIN working_dates w ON 1=1
-				WHERE e.status="Active"
-				AND e.employee NOT IN {self.employees_to_ignore}
+				WHERE emp.status="Active"
+				{self.employees_to_ignore}
 			)
 			SELECT
 				epd.employee AS employee,
@@ -197,7 +200,7 @@ class Points:
 			) tl ON tl.parent = ts.name
 
 			WHERE emp.status="Active"
-			AND emp.employee NOT IN {self.employees_to_ignore}
+			{self.employees_to_ignore}
 			GROUP BY emp.employee
 			ORDER BY total_points DESC, ts.total_hours DESC
 			""",
