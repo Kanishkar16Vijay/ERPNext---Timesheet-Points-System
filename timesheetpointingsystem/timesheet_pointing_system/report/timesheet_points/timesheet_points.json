@@ -10,7 +10,7 @@
   },
   {
    "fieldname": "working_days",
-   "fieldtype": "Int",
+   "fieldtype": "Float",
    "label": "Working Days",
    "width": 0
   },

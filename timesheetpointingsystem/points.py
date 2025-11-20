@@ -173,13 +173,16 @@ class Points:
 			LEFT JOIN (
 				SELECT
 					employee,
-					SUM(
-						DATEDIFF(
-							LEAST(to_date, '{end}'),
-							GREATEST(from_date, '{start}')
+					CASE
+						WHEN half_day = 1 THEN .5
+						ELSE SUM(
+							DATEDIFF(
+								LEAST(to_date, '{end}'),
+								GREATEST(from_date, '{start}')
+							)
+							+ 1
 						)
-						+ 1
-					) as leave_days
+					END as leave_days
 				FROM `tabLeave Application`
 				WHERE status="Approved" AND from_date<='{end}' AND to_date>='{start}'
 				GROUP BY employee
@@ -202,7 +205,7 @@ class Points:
 			WHERE emp.status="Active"
 			{self.employees_to_ignore}
 			GROUP BY emp.employee
-			ORDER BY total_points DESC, ts.total_hours DESC
+			ORDER BY total_points DESC, tl.word_count DESC
 			""",
 			as_dict=True,
 		)
