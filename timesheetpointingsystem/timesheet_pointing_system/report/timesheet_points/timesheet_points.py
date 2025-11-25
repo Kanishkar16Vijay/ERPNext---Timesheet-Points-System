@@ -10,7 +10,7 @@ def execute(filters=None):
 
 	columns = [
 		{"fieldname": "employee_name", "fieldtype": "Data", "label": _("Employee"), "width": 0},
-		{"fieldname": "working_days", "fieldtype": "Int", "label": _("Working Days"), "width": 0},
+		{"fieldname": "working_days", "fieldtype": "Float", "label": _("Working Days"), "width": 0},
 		{"fieldname": "missed_dates", "fieldtype": "Data", "label": _("Missed Date"), "width": 300},
 		{"fieldname": "worked_days", "fieldtype": "Int", "label": _("Timesheet Days"), "width": 0},
 		{"fieldname": "word_count", "fieldtype": "Int", "label": _("Des Length"), "width": 0},

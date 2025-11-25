@@ -66,6 +66,9 @@ frappe.ui.form.on("Points Configuration", {
 			"weekly",
 			"monthly",
 			"holiday_list",
+			"thread_id",
+			"rank",
+			"employees_to_ignore",
 		];
 
 		fields.forEach((f) => frm.set_df_property(f, "hidden", hide));
