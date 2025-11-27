@@ -92,7 +92,7 @@ class Points:
 		return cnt
 
 	# Getting missing dates for timesheet
-	def missed_days(self, working_days):
+	def missed_days(self, working_days, only_emp):
 		if not working_days:
 			return {}
 
@@ -110,6 +110,7 @@ class Points:
 				JOIN working_dates w ON 1=1
 				WHERE emp.status="Active"
 				{self.employees_to_ignore}
+				{only_emp}
 			)
 			SELECT
 				epd.employee AS employee,
@@ -142,6 +143,13 @@ class Points:
 
 	# Creating Summary
 	def points_summary(self, title, start, end, report):
+		only_emp = ""
+		if type(report) is tuple:
+			if len(report) == 1:
+				only_emp = f"AND emp.employee IN ('{report[0]}')"
+			else:
+				only_emp = f"AND emp.employee IN {report}"
+
 		data = frappe.db.sql(
 			f"""
 			SELECT
@@ -204,6 +212,7 @@ class Points:
 
 			WHERE emp.status="Active"
 			{self.employees_to_ignore}
+			{only_emp}
 			GROUP BY emp.employee
 			ORDER BY total_points DESC, tl.word_count DESC
 			""",
@@ -211,7 +220,7 @@ class Points:
 		)
 
 		working_days = self.cnt_working_days(start, end)
-		missed_date = self.missed_days(working_days)
+		missed_date = self.missed_days(working_days, only_emp)
 		no_wrk_days = len(working_days)
 		if report:
 			return data, missed_date, no_wrk_days

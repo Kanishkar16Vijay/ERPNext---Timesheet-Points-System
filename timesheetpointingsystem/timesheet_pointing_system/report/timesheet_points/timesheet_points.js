@@ -4,6 +4,15 @@
 frappe.query_reports["Timesheet Points"] = {
 	filters: [
 		{
+			fieldname: "employee",
+			label: __("Employee"),
+			fieldtype: "MultiSelectList",
+			options: "Employee",
+			get_data: (txt) => {
+				return frappe.db.get_link_options("Employee", txt);
+			},
+		},
+		{
 			fieldname: "from_date",
 			label: __("From Date"),
 			fieldtype: "Date",
