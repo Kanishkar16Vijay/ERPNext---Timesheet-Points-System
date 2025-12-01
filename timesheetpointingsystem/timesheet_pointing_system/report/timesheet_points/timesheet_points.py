@@ -26,7 +26,12 @@ def execute(filters=None):
 		)
 	)
 
-	summary, missed_date, no_wrk_days = set_points(filters.from_date, filters.to_date, True)
+	if filters.employee:
+		summary, missed_date, no_wrk_days = set_points(
+			filters.from_date, filters.to_date, tuple(filters.employee)
+		)
+	else:
+		summary, missed_date, no_wrk_days = set_points(filters.from_date, filters.to_date, True)
 	for emp in summary:
 		emp_summary = {}
 		emp_summary["employee_name"] = emp_map.get(emp.employee)
