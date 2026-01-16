@@ -316,6 +316,10 @@ def set_points(start=None, end=None, report=None):
 			frappe.log_error("Holiday List Error", "Holiday List not set in Points Configuration or Company")
 			return
 
+		if frappe.get_value("Holiday List", point.holiday_list, "to_date") < getdate(today()):
+			frappe.log_error("Holiday List Error", "Set the Holiday List for current working year")
+			return
+
 		if report:
 			return point.points_summary(None, start, end, report)
 
